@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uitleenbon – Creatieve werkplaats</title>
+<style>
+  :root {
+    --bench: #e4e8ec;
+    --panel: #f6f8fa;
+    --ink: #18212b;
+    --muted: #5b6876;
+    --line: #c5ccd4;
+    --accent: #1f43c9;
+    --accent-ink: #ffffff;
+    --ok: #16794c;
+    --err: #b3261e;
+    --paper: #fdfdfb;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bench: #14181d;
+      --panel: #1c2229;
+      --ink: #e8edf2;
+      --muted: #9aa6b3;
+      --line: #2f3841;
+      --accent: #7f9bff;
+      --accent-ink: #0d1330;
+      --ok: #5fd39a;
+      --err: #ff8a80;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bench);
+    color: var(--ink);
+    font: 16px/1.5 "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 28px 20px 48px; }
+  header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+  h1 { margin: 0; font-size: 2rem; letter-spacing: -0.01em; line-height: 1.1; }
+  header p { margin: 4px 0 0; color: var(--muted); }
+  .status { display: flex; align-items: center; gap: 10px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+  .dot.on { background: var(--ok); }
+  .status span { color: var(--muted); font-size: 0.9rem; }
+
+  .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 22px; }
+  label, .legend { display: block; font-weight: 600; margin: 0 0 6px; }
+  .field { margin-bottom: 18px; }
+  input[type=text], input[type=time], input[type=number], select {
+    width: 100%; font: inherit; line-height: 1.5; color: inherit; background: var(--bench);
+    border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px;
+    -webkit-appearance: none; appearance: none;
+  }
+  input[type=time] { min-height: 46px; font-variant-numeric: tabular-nums; }
+  input[type=time]::-webkit-datetime-edit { padding: 0; }
+  input[type=time]::-webkit-datetime-edit-fields-wrapper { padding: 0; }
+  input[type=time]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.6; }
+  @media (prefers-color-scheme: dark) {
+    input[type=time]::-webkit-calendar-picker-indicator { filter: invert(1); }
+  }
+  input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible {
+    outline: 3px solid var(--accent); outline-offset: 2px;
+  }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg label { margin: 0; padding: 9px 18px; cursor: pointer; font-weight: 500; background: var(--bench); }
+  .seg input:checked + label { background: var(--accent); color: var(--accent-ink); }
+  .seg input:focus-visible + label { outline: 3px solid var(--accent); outline-offset: -3px; }
+
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+  button { font: inherit; font-weight: 600; border-radius: 6px; padding: 12px 20px; cursor: pointer; border: 1px solid var(--line); background: var(--bench); color: var(--ink); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); flex: 1 1 auto; font-size: 1.05rem; }
+  button:disabled { opacity: 0.55; cursor: progress; }
+
+  .msg { min-height: 1.5em; margin: 14px 0 0; font-weight: 500; }
+  .msg.ok { color: var(--ok); }
+  .msg.err { color: var(--err); }
+
+  details { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
+  summary { cursor: pointer; font-weight: 600; }
+  details .row { margin-top: 12px; }
+  .check { display: flex; align-items: center; gap: 8px; font-weight: 500; margin: 12px 0 0; cursor: pointer; }
+  .check input { width: auto; margin: 0; }
+  details small { color: var(--muted); display: block; margin-top: 8px; }
+
+  /* de bon zelf */
+  .preview { display: flex; flex-direction: column; align-items: center; }
+  .preview h2 { align-self: flex-start; margin: 0 0 12px; font-size: 1rem; color: var(--muted); font-weight: 600; }
+  .sheet { filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.18)); max-width: 100%; overflow-x: auto; }
+  .paper {
+    --cpl: 48;
+    width: calc(var(--cpl) * 1ch + 40px);
+    background: var(--paper);
+    color: #222;
+    padding: 24px 20px 10px;
+    font: 13px/1.3 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  .paper .ln { white-space: pre; }
+  .paper .ph { color: #a2a8ae; }
+  .paper .inv { background: #222; color: #fff; }
+  .paper .inv.ph { color: #a9afb5; }
+  .tear {
+    height: 14px; width: 100%;
+    background:
+      linear-gradient(-45deg, transparent 7px, var(--paper) 0) 0 0 / 14px 14px,
+      linear-gradient(45deg, transparent 7px, var(--paper) 0) 0 0 / 14px 14px;
+  }
+  .sheet { width: fit-content; }
+  .note { color: var(--muted); font-size: 0.85rem; margin: 12px 0 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Uitleenbon</h1>
+      <p id="sub"></p>
+    </div>
+    <div class="status">
+      <span class="dot" id="dot"></span>
+      <span id="statusText">Printer niet gekoppeld</span>
+      <button type="button" id="connect">Printer koppelen</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="panel" aria-label="Gegevens van de uitleen">
+      <div class="field">
+        <label for="voorwerp">Voorwerp</label>
+        <input type="text" id="voorwerp" autocomplete="off" placeholder="Bijvoorbeeld: accuschroevendraaier">
+      </div>
+      <div class="field">
+        <label for="naam">Naam student</label>
+        <input type="text" id="naam" autocomplete="off">
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="lokaal">Lokaal</label>
+          <input type="text" id="lokaal" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="terug">Terugbrengen om</label>
+          <input type="time" id="terug">
+        </div>
+      </div>
+      <div class="field">
+        <span class="legend" id="aantalLabel">Aantal bonnen</span>
+        <div class="seg" role="radiogroup" aria-labelledby="aantalLabel">
+          <input type="radio" name="copies" id="c1" value="1" checked><label for="c1">1</label>
+          <input type="radio" name="copies" id="c2" value="2"><label for="c2">2</label>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="primary" id="print">Bon printen</button>
+      </div>
+      <p class="msg" id="msg" role="status" aria-live="polite"></p>
+
+      <details>
+        <summary>Printerinstellingen</summary>
+        <div class="row">
+          <div>
+            <label for="widthNum">Tekens per regel</label>
+            <input type="number" id="widthNum" min="16" max="64" value="32">
+          </div>
+          <div>
+            <label for="cpNum">Codepagina-nummer</label>
+            <input type="number" id="cpNum" min="0" max="255" value="19">
+          </div>
+        </div>
+        <div class="checks">
+          <label class="check"><input type="checkbox" id="bigChk"> Grote en vette letters</label>
+          <label class="check"><input type="checkbox" id="cutChk"> Printer heeft een snijmes</label>
+        </div>
+        <small>Past een regel niet op het papier, verlaag dan het aantal tekens (32 past op papier van 58 mm, 48 op papier van 80 mm). Komen é, ë of € verkeerd op de bon? Probeer een ander codepagina-nummer (19 is CP858).</small>
+      </details>
+    </section>
+
+    <section class="preview" aria-label="Voorvertoning van de bon">
+      <h2>Zo komt de bon eruit</h2>
+      <div class="sheet" id="sheet">
+        <div class="paper" id="paper"></div>
+        <div class="tear"></div>
+      </div>
+      <p class="note" id="widthNote"></p>
+    </section>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+/* ---------- instellingen onthouden ---------- */
+const store = {
+  get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} }
+};
+const WERKPLAATS = 'Makerspace';
+const clampCpl = v => Math.min(64, Math.max(16, Math.round(Number(v)) || 32));
+let cpl = clampCpl(store.get('cpl32', '32'));
+let useBig = store.get('big', '1') === '1';
+let hasCutter = store.get('cut', '0') === '1';
+let codepage = Number(store.get('cp', '19'));
+
+/* ---------- datums ---------- */
+const pad = n => String(n).padStart(2, '0');
+
+/* ---------- tekst op de bon ---------- */
+function wrap(text, width) {
+  const out = []; let line = '';
+  for (let word of text.trim().split(/\s+/)) {
+    while (word.length > width) {
+      if (line) { out.push(line); line = ''; }
+      out.push(word.slice(0, width)); word = word.slice(width);
+    }
+    if (!line) line = word;
+    else if ((line + ' ' + word).length <= width) line += ' ' + word;
+    else { out.push(line); line = word; }
+  }
+  if (line) out.push(line);
+  return out.length ? out : [''];
+}
+
+function readForm() {
+  return {
+    voorwerp: $('voorwerp').value.trim(),
+    naam: $('naam').value.trim(),
+    lokaal: $('lokaal').value.trim(),
+    terug: $('terug').value,
+    copies: Number(document.querySelector('input[name=copies]:checked').value)
+  };
+}
+
+function bonLines(d, preview) {
+  const L = [];
+  const add = (t, o = {}) => L.push({ t, size: 1, bold: false, align: 'left', ph: false, ...o });
+  const rule = c => add(c.repeat(cpl));
+  const w = useBig ? Math.floor(cpl / 2) : cpl;
+  const big = (t, o = {}) => wrap(t, w).forEach(x => add(x, { size: useBig ? 2 : 1, bold: true, ...o }));
+  const row = (l, r, o = {}) => {
+    if (l.length + r.length + 1 <= cpl) add(l + ' '.repeat(cpl - l.length - r.length) + r, o);
+    else { add(l, o); add(r, { ...o, align: 'right' }); }
+  };
+  const val = (v, placeholder) => v ? { t: v, ph: false } : { t: placeholder, ph: true };
+
+  // kop
+  const now = new Date();
+  rule('=');
+  big('UITLEENBON', { align: 'center' });
+  add(WERKPLAATS, { align: 'center', bold: true });
+  rule('=');
+  row(`${pad(now.getDate())}-${pad(now.getMonth() + 1)}-${now.getFullYear()}`, `${pad(now.getHours())}:${pad(now.getMinutes())}`);
+  rule('-');
+
+  // wat en wie
+  add('Voorwerp');
+  { const v = val(d.voorwerp, 'voorwerp'); big(v.t, { ph: v.ph }); }
+  add('');
+  add('Naam');
+  { const v = val(d.naam, 'naam student'); big(v.t, { ph: v.ph }); }
+  if (d.lokaal || preview) {
+    add('');
+    const v = val(d.lokaal, 'lokaal');
+    row('Lokaal', v.t, { bold: true, ph: v.ph });
+  }
+  rule('-');
+
+  // terugbrengmoment
+  add('Terugbrengen om', { align: 'center' });
+  { const v = val(d.terug, 'tijd'); big(v.t, { align: 'center', ph: v.ph }); }
+  rule('=');
+  add('');
+  add('');
+  return L;
+}
+
+/* ---------- voorvertoning ---------- */
+const esc = s => s.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+function render() {
+  $('paper').style.setProperty('--cpl', cpl);
+  $('widthNote').textContent = `Breedte: ${cpl} tekens per regel`;
+  $('paper').innerHTML = bonLines(readForm(), true).map(l =>
+    `<div class="ln${l.ph ? ' ph' : ''}" style="text-align:${l.align};${l.size === 2 ? 'font-size:2em;' : ''}${l.bold ? 'font-weight:700;' : ''}">${esc(l.t) || '&nbsp;'}</div>`
+  ).join('');
+}
+
+/* ---------- ESC/POS ---------- */
+const CP858 = {
+  'Ç':0x80,'ü':0x81,'é':0x82,'â':0x83,'ä':0x84,'à':0x85,'å':0x86,'ç':0x87,'ê':0x88,'ë':0x89,'è':0x8A,'ï':0x8B,
+  'î':0x8C,'ì':0x8D,'Ä':0x8E,'Å':0x8F,'É':0x90,'æ':0x91,'Æ':0x92,'ô':0x93,'ö':0x94,'ò':0x95,'û':0x96,'ù':0x97,
+  'ÿ':0x98,'Ö':0x99,'Ü':0x9A,'ø':0x9B,'£':0x9C,'Ø':0x9D,'×':0x9E,'á':0xA0,'í':0xA1,'ó':0xA2,'ú':0xA3,'ñ':0xA4,
+  'Ñ':0xA5,'ª':0xA6,'º':0xA7,'¿':0xA8,'ß':0xE1,'€':0xD5,'’':0x27,'‘':0x27,'“':0x22,'”':0x22,'–':0x2D,'—':0x2D
+};
+const encode = ch => { const c = ch.codePointAt(0); return c < 128 ? c : (CP858[ch] ?? 0x3F); };
+
+function toBytes(lines) {
+  const b = [0x1B, 0x40, 0x1B, 0x74, codepage];
+  const align = { left: 0, center: 1, right: 2 };
+  for (const l of lines) {
+    const dbl = l.size === 2;
+    b.push(
+      0x1B, 0x61, align[l.align],
+      0x1D, 0x21, dbl ? 0x11 : 0x00,                       // GS !  (Epson-stijl formaat)
+      0x1B, 0x21, (l.bold ? 0x08 : 0) | (dbl ? 0x30 : 0),  // ESC ! (werkt op bijna elke printer)
+      0x1B, 0x45, l.bold ? 1 : 0                           // ESC E (vet)
+    );
+    for (const ch of l.t) b.push(encode(ch));
+    b.push(0x0A);
+  }
+  b.push(0x1B, 0x21, 0, 0x1B, 0x45, 0, 0x1D, 0x21, 0, 0x1B, 0x61, 0);
+  if (hasCutter) b.push(0x1B, 0x64, 4, 0x1D, 0x56, 0x42, 0x00); // doorvoer en afsnijden
+  else b.push(0x1B, 0x64, 6);                                   // genoeg papier om af te scheuren
+  return new Uint8Array(b);
+}
+
+/* ---------- USB ---------- */
+let device = null, endpoint = null;
+
+function setStatus() {
+  const on = !!device;
+  $('dot').classList.toggle('on', on);
+  $('statusText').textContent = on ? `Verbonden: ${device.productName || 'printer'}` : 'Printer niet gekoppeld';
+  $('connect').hidden = on;
+}
+
+async function openDevice(d) {
+  if (device && device !== d) { try { await device.close(); } catch {} }
+  await d.open();
+  if (!d.configuration) await d.selectConfiguration(1);
+  const ifaces = [...d.configuration.interfaces].sort((a, b) =>
+    (b.alternates[0].interfaceClass === 7) - (a.alternates[0].interfaceClass === 7));
+  for (const i of ifaces) {
+    const out = i.alternates[0].endpoints.find(e => e.direction === 'out');
+    if (out) {
+      await d.claimInterface(i.interfaceNumber);
+      device = d; endpoint = out.endpointNumber; setStatus();
+      return;
+    }
+  }
+  throw new Error('NO_ENDPOINT');
+}
+
+async function connect() {
+  const d = await navigator.usb.requestDevice({ filters: [] });
+  await openDevice(d);
+}
+
+async function send(bytes) {
+  for (let i = 0; i < bytes.length; i += 1024) {
+    const r = await device.transferOut(endpoint, bytes.slice(i, i + 1024));
+    if (r.status !== 'ok') throw new Error('TRANSFER');
+  }
+}
+
+function explain(e) {
+  if (!('usb' in navigator)) return 'Deze browser kan niet via USB printen. Gebruik Chrome of Edge.';
+  if (e.name === 'NotFoundError') return 'Er is geen printer gekozen.';
+  if (e.name === 'SecurityError') return 'De browser staat dit niet toe. Open de pagina via https:// of http://localhost.';
+  if (e.name === 'NetworkError' || e.name === 'InvalidStateError' || /claim|open/i.test(e.message))
+    return 'De printer kan niet worden geopend. Staat hij nog in Printers en scanners? Verwijder hem daar, sluit de USB-kabel opnieuw aan en probeer het nog een keer.';
+  if (e.message === 'NO_ENDPOINT') return 'Op dit apparaat is geen printerpoort gevonden. Is dit wel de bonprinter?';
+  if (e.message === 'TRANSFER') return 'De printer reageert niet. Controleer of hij aanstaat en papier heeft.';
+  return 'Printen mislukt: ' + e.message;
+}
+
+/* ---------- acties ---------- */
+function say(text, kind) { const m = $('msg'); m.textContent = text; m.className = 'msg ' + (kind || ''); }
+
+async function run(btn, task) {
+  btn.disabled = true;
+  try { await task(); } catch (e) { say(explain(e), 'err'); }
+  btn.disabled = false;
+}
+
+function resetForm() {
+  $('voorwerp').value = ''; $('naam').value = ''; $('lokaal').value = '';
+  $('terug').value = '';
+  $('c1').checked = true;
+  render();
+  $('voorwerp').focus();
+}
+
+$('connect').onclick = () => run($('connect'), async () => { await connect(); say('Printer gekoppeld.', 'ok'); });
+
+$('print').onclick = () => {
+  const d = readForm();
+  if (!d.voorwerp || !d.naam || !d.terug) { say('Vul eerst het voorwerp, de naam en de tijd in.', 'err'); return; }
+  run($('print'), async () => {
+    if (!device) await connect();
+    const bytes = toBytes(bonLines(d, false));
+    for (let i = 0; i < d.copies; i++) await send(bytes);
+    resetForm();
+    say(d.copies === 1 ? 'Bon geprint.' : 'Bonnen geprint.', 'ok');
+  });
+};
+
+$('widthNum').onchange = e => { cpl = clampCpl(e.target.value); e.target.value = cpl; store.set('cpl32', cpl); render(); };
+$('cpNum').onchange = e => { codepage = Number(e.target.value); store.set('cp', codepage); };
+$('bigChk').onchange = e => { useBig = e.target.checked; store.set('big', useBig ? '1' : '0'); render(); };
+$('cutChk').onchange = e => { hasCutter = e.target.checked; store.set('cut', hasCutter ? '1' : '0'); };
+['voorwerp', 'naam', 'lokaal', 'terug'].forEach(id => $(id).addEventListener('input', render));
+document.querySelectorAll('input[name=copies]').forEach(r => r.addEventListener('change', render));
+
+/* ---------- start ---------- */
+$('widthNum').value = cpl;
+$('cpNum').value = codepage;
+$('bigChk').checked = useBig;
+$('cutChk').checked = hasCutter;
+$('sub').textContent = WERKPLAATS;
+document.title = 'Uitleenbon – ' + WERKPLAATS;
+setStatus();
+render();
+
+if (!('usb' in navigator)) {
+  say('Deze browser kan niet via USB printen. Gebruik Chrome of Edge.', 'err');
+} else {
+  navigator.usb.getDevices().then(l => { if (l[0]) openDevice(l[0]).catch(() => {}); });
+  navigator.usb.addEventListener('disconnect', e => {
+    if (e.device === device) { device = null; endpoint = null; setStatus(); say('De printer is losgekoppeld.', 'err'); }
+  });
+  navigator.usb.addEventListener('connect', e => { if (!device) openDevice(e.device).catch(() => {}); });
+}
+</script>
+</body>
+</html>
